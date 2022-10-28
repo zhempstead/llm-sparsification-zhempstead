@@ -26,7 +26,7 @@
    Explain the nature of your methods, regardless of whether you code it yourselves.
 
 5. Find 2 common benchmarks used by your models, by reviewing their publications. \
-   Set them up and obtain baseline results of unpruned models. \
+   Set them up and obtain baseline results of original models. \
    Compare performance of your sparsified versions with the baselines.
    Include plots and explanations.
 
