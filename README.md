@@ -22,7 +22,7 @@
    - what fraction of parameters >> 0? overall? by layer?
    - how does this vary by layer?
 
-4. Produce sparsified version of your models at 10%, 50%, 90%, 95%, 99%, by either coding your methods or using existing tools provided below
+4. Produce sparsified versions of your models at 10%, 50%, 90%, 95%, 99%, by either coding your methods or using existing tools provided below
    Explain the nature of your methods, regardless of whether you code it yourselves.
 
 5. Find 2 common benchmarks used by your models, by reviewing their publications. \
@@ -46,7 +46,7 @@
 ## resources to choose from
 - [Pytorch Prune](https://pytorch.org/tutorials/intermediate/pruning_tutorial.html)
 - [TensorFlow Pruning](https://www.tensorflow.org/model_optimization/guide/pruning/comprehensive_guide)
-- [TextPruner](https://github.com/airaria/TextPruner)
-- [TextBrewer](https://github.com/airaria/TextBrewer)
 - [OpenBMB - BMCook](https://github.com/OpenBMB/BMCook)
+- [airaria - TextPruner](https://github.com/airaria/TextPruner)
+- [airaria - TextBrewer](https://github.com/airaria/TextBrewer)
 - ...
