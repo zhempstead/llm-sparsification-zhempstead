@@ -1,12 +1,13 @@
 import os
 from pathlib import Path
+import timeit
 
 import argh
 import matplotlib
 import pandas as pd
 import torch
 from torch.nn.utils import prune
-from transformers import GPT2Model, RobertaModel, T5ForConditionalGeneration
+from transformers import GPT2LMHeadModel, GPT2Tokenizer, RobertaForCausalLM, RobertaTokenizer, T5ForConditionalGeneration, T5Tokenizer
 
 MODEL_TYPE_TO_HF_STRING = {
     "gpt2": "gpt2-xl", # gpt, gpt2-xl
@@ -15,12 +16,20 @@ MODEL_TYPE_TO_HF_STRING = {
 }
 
 MODEL_TYPE_TO_HF_CLASS = {
-    "gpt2": GPT2Model,
-    "roberta": RobertaModel,
+    "gpt2": GPT2LMHeadModel,
+    "roberta": RobertaForCausalLM,
     "t5": T5ForConditionalGeneration,
 }
 
+MODEL_TYPE_TO_HF_TOKENIZER = {
+    "gpt2": GPT2Tokenizer,
+    "roberta": RobertaTokenizer,
+    "t5": T5Tokenizer,
+}
+
 PRUNE_AMOUNTS = [0.0, 0.1, 0.5, 0.9, 0.95, 0.99]
+
+ITERS = 10
 
 MODELFILE = Path('/tmp/model.h5')
 ZIPFILE = Path('/tmp/model.h5.gz')
@@ -29,10 +38,15 @@ ZIPFILE = Path('/tmp/model.h5.gz')
 def main(model_type):
     hf_class = MODEL_TYPE_TO_HF_CLASS[model_type]
     hf_string = MODEL_TYPE_TO_HF_STRING[model_type]
+    hf_tokenizer = MODEL_TYPE_TO_HF_TOKENIZER[model_type]
     model = hf_class.from_pretrained(hf_string)
+    tokenizer = hf_tokenizer.from_pretrained(hf_string)
 
-    uncompressed_mbs = []
-    compressed_mbs = []
+    text = "Hello, world! Or should I say, hello, large language model?"
+    tokens = tokenizer.encode(text, return_tensors='pt')
+    #model.generate(tokenizer.encode(text
+
+    times = []
 
     for amount in PRUNE_AMOUNTS:
         print(f"Pruning {amount}...")
@@ -40,23 +54,25 @@ def main(model_type):
             # It's safe to call this on an already-pruned model as long as amount is greater than before.
             # since we're selecting the smallest weights, the already-pruned weights will always be selected.
             model = prune_global_l1(model, amount)
-        print(f"Writing to file...")
-        torch.save(model.state_dict(), MODELFILE)
-        uncompressed_mbs.append(round(MODELFILE.stat().st_size / 2**20))
-        print(f"Compressing...")
-        os.system(f"pigz -qf {MODELFILE}")
-        compressed_mbs.append(round(ZIPFILE.stat().st_size / 2**20))
-        ZIPFILE.unlink()
+            
+        these_times = []
+        for i in range(ITERS):
+            print(f"Iteration {i}...")
+            start = timeit.default_timer()
+            model.generate(tokens, max_new_tokens=1)
+            end = timeit.default_timer()
+            these_times.append(end - start)
+        times.append(sum(these_times) / ITERS)
+
     df = pd.DataFrame({
         'pruned_frac': PRUNE_AMOUNTS,
-        'uncompressed': uncompressed_mbs,
-        'compressed': compressed_mbs,
+        'times': times,
     })
     df.plot(
-        x='pruned_frac', y=['uncompressed', 'compressed'],
-        title=f"{model_type} model size on disk", ylabel='Size on disk (MiBs)',
+        x='pruned_frac', y='times',
+        title=f"{model_type} runtimes", ylabel='Runtime (seconds)',
         xticks=df['pruned_frac'],
-    ).get_figure().savefig(f"plots/{model_type}_disk.png")
+    ).get_figure().savefig(f"plots/{model_type}_runtimes.png")
 
 
 def prune_global_l1(model, amount):

@@ -22,6 +22,8 @@ Encoder-Decoder: T5-3B (3B parameters, as the name suggests)
 
 ## 3
 
+The relevant file for this portion is 'src/param_stats.py'.
+
 Fraction of parameters overall whose absolute values are greater than 0.1 and 1 respectively:
 - GPT2: 1.842e-2, 2.400e-6
 - RoBERTa: 9.441e-2, 6.754e-8
@@ -38,35 +40,42 @@ In addition to plots of 'gt01' and 'gt1' (the fraction of weights whose absolute
 
 ![gpt2_std](./plots/by_layer/gpt2_block_std.png)
 
-3. Devise approaches to assess sparsity structure in your choice of models and answer these questiosn:
-   - what fraction of parameters >> 0? overall? by layer?
-   - how does this vary by layer?
+The others exist under 'plots/by_layer'.
 
-4. Produce sparsified versions of your models at 10%, 50%, 90%, 95%, 99%, by either coding your methods or using existing tools provided below
-   Explain the nature of your methods, regardless of whether you code it yourselves.
+## 4
 
-5. Find 2 common benchmarks used by your models, by reviewing their publications. \
-   Set them up and obtain baseline results of original models. \
-   Compare performance of your sparsified versions with the baselines.
-   Include plots and explanations.
+I used the built-in Pytorch L1 pruning globally. Basically it prunes the weights with the smallest absolute values across the entire model. The pruned weights are simply set to zero - pytorch doesn't actually make the matrices sparse, as at reasonable levels of pruning these matrices are a lot less sparse than sparse matrices that arise in other types of scientific computing (which sparse matrix libraries are built around).
 
-6. Compare size of models and runtime for sparsified models. Include plots and explanations.
+## 5
 
-7. Explain the challenges of sparsification on LLMs.
+I was trying to get the coqa dataset to run with GPT2, but I was having trouble getting it to give reasonable results in spot-checks, despite following the GPT-2 paper's instructions as closely as possible. I realized that to run it over even the development set I would need to figure out how to submit jobs to the Polaris compute nodes, but I heard from classmates that their jobs were stuck in the queue for a long time, so I decided to abort. I have a bit of spaghetti code in src/coqa.py.
 
-## submission:
-1. Due: Nov 9th, 12 PM CST
-2. Fork your public Github repository, change the repo name to `llm-sparsification-<cnetid>`
-3. we will look out for the following files:
-   - `report.md`
-   - `src/*`
-   - `requirements.txt` for `pip` or `environment.yml` for `conda`
-   - any jupyter notebooks
+## 6
 
-## resources to choose from
-- [Pytorch Prune](https://pytorch.org/tutorials/intermediate/pruning_tutorial.html)
-- [TensorFlow Pruning](https://www.tensorflow.org/model_optimization/guide/pruning/comprehensive_guide)
-- [OpenBMB - BMCook](https://github.com/OpenBMB/BMCook)
-- [airaria - TextPruner](https://github.com/airaria/TextPruner)
-- [airaria - TextBrewer](https://github.com/airaria/TextBrewer)
-- ...
+Sizes of models were evaluated in src/prune.py and runtimes of models were evaluated in src/pruned_runtime.py
+
+Below are plots of the sizes of the uncompressed and compressed models at the various sparsity levels:
+
+![gpt2_std](./plots/by_layer/gpt2_disk.png)
+![gpt2_std](./plots/by_layer/roberta_disk.png)
+![gpt2_std](./plots/by_layer/t5_disk.png)
+
+It is unsurprising that the uncompressed models do not change in size - the tensors are still stored in dense format; it's just that more weights are 0. However, gzip is able to effectively compress when many values are 0. It's interesting that the compression possible on even just the base model varies so much between models.
+
+Below are plots of the runtime (single additional token) of the models at the various sparsity levels:
+
+![gpt2_std](./plots/by_layer/gpt2_runtimes.png)
+![gpt2_std](./plots/by_layer/roberta_runtimes.png)
+![gpt2_std](./plots/by_layer/t5_runtimes.png)
+
+## 7
+
+Many of the challenges of sparsification on LLMs are similar to challenges of sparsification in general:
+- There are few techniques that can optimize "somewhat-sparse" matrices where 50-90% of the weights are zero, so currently the main benefit is in the compressed size of the model (at least with unstructured pruning. Structured pruning can lead to more benefits but in general far fewer weights can be pruned without significant performance degradation).
+- We want to prune as early as possible in training to save training time/computation, but it's hard to know early on which weights are okay to prune
+- Heuristics like L1 pruning are fuzzy. Also, pruning can work *against* regularization, which *penalizes* large weights.
+
+Challenges specific to LLMs:
+- Training is extremely expensive so there is little ability to play around with hyperparameters during training (and how/when to iteratively prune is a hyperparameter)
+- We can prune at the end but then training isn't any cheaper
+- Optimal pruning may be different between the feedforward and attention portions, and different for different layers of the model.
