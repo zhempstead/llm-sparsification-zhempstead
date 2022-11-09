@@ -1,14 +1,13 @@
 import argh
-
 import matplotlib
 import pandas as pd
 import torch
 from transformers import GPT2Model, RobertaModel, T5ForConditionalGeneration
 
 MODEL_TYPE_TO_HF_STRING = {
-    "gpt2": "gpt2", # gpt2-xl
-    "roberta": "roberta-base", # roberta-large
-    "t5": "t5-small", # t5-3b
+    "gpt2": "gpt2-xl", # gpt2-xl
+    "roberta": "roberta-large", # roberta-large
+    "t5": "t5-3b", # t5-3b
 }
 
 MODEL_TYPE_TO_HF_CLASS = {
@@ -37,6 +36,10 @@ def main(model_type):
 
 
 def explore_weights(model, model_type):
+    weights_total = 0
+    weights_gt01 = 0
+    weights_gt1 = 0
+
     layer_df = pd.DataFrame({col: [] for col in [
         'block', 'encoder', 'bias', 'mlp', 'mean', 'std', 'skew', 'excess_kurtosis', 'gt1', 'gt01',
     ]})
@@ -51,14 +54,23 @@ def explore_weights(model, model_type):
         skew = torch.mean(torch.pow(zscores, 3.0))
         excess_kurtosis = torch.mean(torch.pow(zscores, 4.0)) - 3.0
 
-        gt1 = torch.sum(torch.abs(tensor) > 1) / nw
-        gt01 = torch.sum(torch.abs(tensor) > 0.1) / nw
+        gt1_raw = torch.sum(torch.abs(tensor) > 1)
+        gt01_raw = torch.sum(torch.abs(tensor) > 0.1)
+        gt1 = gt1_raw / nw
+        gt01 = gt01_raw / nw
+
+        weights_total += nw
+        weights_gt01 += gt01_raw.item()
+        weights_gt1 += gt1_raw.item()
 
         cats = categories(layer, model_type)
         if cats is None:
             continue
         cats.update({'mean': mean.item(), 'std': std.item(), 'skew': skew.item(), 'excess_kurtosis': excess_kurtosis.item(), 'gt1': gt1.item(), 'gt01': gt01.item()})
         layer_df = layer_df.append(cats, ignore_index=True)
+
+    print(f"Fraction of weights w/abs value > 0.1: {weights_gt01/weights_total}")
+    print(f"Fraction of weights w/abs value > 1: {weights_gt1/weights_total}")
     layer_df['block'] = layer_df['block'].astype(int)
     return layer_df
 
@@ -73,9 +85,9 @@ def categories(layer, model_type):
         out['bias'] = "bias" in layer
         out['mlp'] = "mlp" in layer
     elif model_type == "t5":
-        if split[0] not in ["encoder", "decoder"]:
+        if split[0] not in ["encoder", "decoder"] or "final" in layer:
             return None
-        out['block'] == split[2]
+        out['block'] = split[2]
         out['encoder'] = split[0] == "encoder"
         out['bias'] = "bias" in layer
         out['mlp'] = "Relu" in layer

@@ -1,2 +1,5 @@
+argh
 datasets
+matplotlib
+pandas
 transformers[torch]
