@@ -68,6 +68,8 @@ Below are plots of the runtime (single additional token) of the models at the va
 ![gpt2_std](./plots/by_layer/roberta_runtimes.png)
 ![gpt2_std](./plots/by_layer/t5_runtimes.png)
 
+These times are kind of all over the place, but don't show a very clear pattern. I tried to correct for some variation by setting the maximum new tokens to 1 and repeating 10 times (taking the average). It's possible that the unpruned value tends to be high because I measured it first. Beyond that, I think it's likely random variation. This makes sense as inference shouldn't actually be affected by this type of sparsification - it's still having to feed forward through dense weight tensors.
+
 ## 7
 
 Many of the challenges of sparsification on LLMs are similar to challenges of sparsification in general:
