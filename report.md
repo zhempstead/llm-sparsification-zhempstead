@@ -56,17 +56,17 @@ Sizes of models were evaluated in src/prune.py and runtimes of models were evalu
 
 Below are plots of the sizes of the uncompressed and compressed models at the various sparsity levels:
 
-![gpt2_std](./plots/by_layer/gpt2_disk.png)
-![gpt2_std](./plots/by_layer/roberta_disk.png)
-![gpt2_std](./plots/by_layer/t5_disk.png)
+![gpt2_std](./plots/gpt2_disk.png)
+![gpt2_std](./plots/roberta_disk.png)
+![gpt2_std](./plots/t5_disk.png)
 
 It is unsurprising that the uncompressed models do not change in size - the tensors are still stored in dense format; it's just that more weights are 0. However, gzip is able to effectively compress when many values are 0. It's interesting that the compression possible on even just the base model varies so much between models.
 
 Below are plots of the runtime (single additional token) of the models at the various sparsity levels:
 
-![gpt2_std](./plots/by_layer/gpt2_runtimes.png)
-![gpt2_std](./plots/by_layer/roberta_runtimes.png)
-![gpt2_std](./plots/by_layer/t5_runtimes.png)
+![gpt2_std](./plots/gpt2_runtimes.png)
+![gpt2_std](./plots/roberta_runtimes.png)
+![gpt2_std](./plots/t5_runtimes.png)
 
 These times are kind of all over the place, but don't show a very clear pattern. I tried to correct for some variation by setting the maximum new tokens to 1 and repeating 10 times (taking the average). It's possible that the unpruned value tends to be high because I measured it first. Beyond that, I think it's likely random variation. This makes sense as inference shouldn't actually be affected by this type of sparsification - it's still having to feed forward through dense weight tensors.
 
